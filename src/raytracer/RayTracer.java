@@ -127,7 +127,7 @@ public class RayTracer {
 	}
 
 
-	public void draw(File outFile) throws IOException, InterruptedException {
+	public byte[] draw(File outFile) throws IOException, InterruptedException {
 		final BufferedImage image = new BufferedImage(cols, rows, BufferedImage.TYPE_INT_RGB);
 
 		long start = System.currentTimeMillis();
@@ -160,9 +160,16 @@ public class RayTracer {
 
 		Log.info("Finished in: " + (System.currentTimeMillis()-start) + "ms");
 
-		ImageIO.write(image, "bmp", outFile);
+//		ImageIO.write(image, "bmp", outFile);
+		return getImage(image);
 	}
 
+	private byte[] getImage(BufferedImage bi) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ImageIO.write(bi, "bmp", baos);
+		byte[] bytes = baos.toByteArray();
+		return bytes;
+	}
 
 	public Color getPixelColor(int col, int row) {
 		int bmpRow = rows-1 - row;
@@ -187,7 +194,19 @@ public class RayTracer {
 	}
 
 
-	public void readScene(File file) throws FileNotFoundException {
+	public void readScene(byte[] fileBytes) throws FileNotFoundException {
+		File file = new File("maiame"+Math.random()+".txt");
+		FileOutputStream fos = new FileOutputStream(file);
+		//En realidad se cierra en el finally. Pero no.
+		try {
+			fos.write(fileBytes);
+			fos.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		//picchi gordo trolo
 		Scanner scanner = new Scanner(file);
 
 		// read view

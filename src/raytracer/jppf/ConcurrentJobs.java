@@ -18,7 +18,13 @@
 
 package raytracer.jppf;
 
+import java.awt.*;
+import java.awt.image.*;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 
 import javafx.scene.Scene;
@@ -28,8 +34,16 @@ import org.jppf.node.protocol.Task;
 import org.jppf.utils.ExceptionUtils;
 import raytracer.SceneFile;
 
+import javax.imageio.ImageIO;
+
 public class ConcurrentJobs {
 
+  private static void saveImgs(byte[] img, String path) throws IOException {
+    BufferedImage image = ImageIO.read(new ByteArrayInputStream(img));
+    File outputfile = new File(path);
+    ImageIO.write(image, "bmp", outputfile);
+    System.out.println("SACALACAI TE VA QUEDAR TRIFICADA LOKAAA");
+  }
 
   /**
    * N threads, trabajos bloqueantes.
@@ -66,6 +80,7 @@ public class ConcurrentJobs {
    * @throws Exception if any error occurs.
    */
   public void singleThreadNonBlockingJobs(List<SceneFile> scenes) throws Exception {
+    //HACER QUE LOS JOBS SOLO HAGAN UNA SOLA SCENE
     int nbJobs = 1;
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
@@ -155,6 +170,11 @@ public class ConcurrentJobs {
       if (task.getThrowable() != null) { // if the task execution raised an exception
         System.out.printf("%s raised an exception : %s%n", task.getId(), ExceptionUtils.getMessage(task.getThrowable()));
       } else { // otherwise display the task result
+        try {
+          ConcurrentJobs.saveImgs(((SceneGenerator)task).getImageAsBytes(), ((SceneGenerator)task).getOutputPath());
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
         System.out.printf("result of %s : %s%n", task.getId(), task.getResult());
       }
     }
