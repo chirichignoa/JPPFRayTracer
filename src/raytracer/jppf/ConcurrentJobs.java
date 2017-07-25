@@ -81,19 +81,26 @@ public class ConcurrentJobs {
    */
   public void singleThreadNonBlockingJobs(List<SceneFile> scenes) throws Exception {
     //HACER QUE LOS JOBS SOLO HAGAN UNA SOLA SCENE
-    int nbJobs = 1;
+    int nbJobs = 2;
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
       List<JPPFJob> jobs = new ArrayList<>(nbJobs);
       for (int i=0; i<nbJobs; i++) {
         // create the job and its tasks
-        JPPFJob job = createJob("singleThreadNonBlockingJob " + i, scenes);
-        job.setBlocking(false);
+        JPPFJob job = createJob("singleThreadNonBlockingJob " + i, new ArrayList<>());
         jobs.add(job);
-        jppfClient.submitJob(job);
       }
+
+      for(int i = 0; i < scenes.size(); i++) {
+        for(int j = 0; j < nbJobs; j++) {
+          addScene(jobs.get(j),scenes.get(i), i);
+        }
+      }
+
       for (JPPFJob job: jobs) {
+        job.setBlocking(false);
+        jppfClient.submitJob(job);
         job.awaitResults();
         // process the job results
         processResults(job);
@@ -157,6 +164,16 @@ public class ConcurrentJobs {
       i++;
     }
     return job;
+  }
+
+  public static void addScene(JPPFJob job, SceneFile scene, int sceneId) {
+    SceneGenerator task = new SceneGenerator(scene);
+    try {
+      // add the task to the job and give it a readable id
+      job.add(task).setId(job.getName() + " - " + "task " + sceneId);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   /**
