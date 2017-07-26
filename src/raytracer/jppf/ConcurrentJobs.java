@@ -30,6 +30,7 @@ import java.util.concurrent.*;
 import javafx.scene.Scene;
 import org.jppf.client.*;
 import org.jppf.client.event.*;
+import org.jppf.node.policy.AtLeast;
 import org.jppf.node.protocol.Task;
 import org.jppf.utils.ExceptionUtils;
 import raytracer.SceneFile;
@@ -117,11 +118,22 @@ public class ConcurrentJobs {
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
+      List<JPPFJob> jobs = new ArrayList<>();
       // synchronization helper that tells us when all jobs have completed
       final CountDownLatch countDown = new CountDownLatch(nbJobs);
       for (int i=1; i<=nbJobs; i++) {
-        JPPFJob job = createJob("asynchronousNonBlockingJob " + i, scenes);
+        JPPFJob job = createJob("asynchronousNonBlockingJob " + i, new ArrayList<>());
         job.setBlocking(false);
+        jobs.add(job);
+      }
+
+      for(int i = 0; i < scenes.size(); i++) {
+        for(int j = 0; j < nbJobs; j++) {
+          addScene(jobs.get(j),scenes.get(i), i);
+        }
+      }
+
+      for(JPPFJob job: jobs) {
         // results will be processed asynchronously within
         // the job listener's jobEnded() notifications
         job.addJobListener(new JobListenerAdapter() {
