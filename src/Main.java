@@ -41,11 +41,11 @@ public class Main {
 		SceneFile s3 = new SceneFile(new File("test03.txt"), 1000,1000, new File("maiame3.bmp"));
 		SceneFile s4 = new SceneFile(new File("test04.txt"), 1000,1000, new File("maiame4.bmp"));
 		SceneFile s5 = new SceneFile(new File("test01.txt"), 1000,1000, new File("maiame5.bmp"));
-		SceneFile s6 = new SceneFile(new File("test02.txt"), 1000,1000, new File("maiame6.bmp"));/*
+		SceneFile s6 = new SceneFile(new File("test02.txt"), 1000,1000, new File("maiame6.bmp"));
 		SceneFile s7 = new SceneFile(new File("test03.txt"), 1000,1000, new File("maiame7.bmp"));
 		SceneFile s8 = new SceneFile(new File("test04.txt"), 1000,1000, new File("cortastetodalaloz1.bmp"));
 		SceneFile s9 = new SceneFile(new File("test05.txt"), 1000,1000, new File("cortastetodalaloz2.bmp"));
-		SceneFile s10 = new SceneFile(new File("test05.txt"), 1000,1000, new File("cortastetodalaloz3.bmp"));*/
+		SceneFile s10 = new SceneFile(new File("test05.txt"), 1000,1000, new File("cortastetodalaloz3.bmp"));
 
 
 		List<SceneFile> scenes = new ArrayList<>();
@@ -55,17 +55,22 @@ public class Main {
 		scenes.add(s4);
 		scenes.add(s5);
 		scenes.add(s6);
-		/*scenes.add(s7);
+		scenes.add(s7);
 		scenes.add(s8);
 		scenes.add(s9);
-		scenes.add(s10);*/
+		scenes.add(s10);
 
 		ConcurrentJobs jobs = new ConcurrentJobs();
 
 		try {
+			long startTime = System.currentTimeMillis();
 			jobs.singleThreadNonBlockingJobs(scenes);
+
 			//jobs.asynchronousNonBlockingJobs(scenes);
 			//jobs.multipleThreadsBlockingJobs(scenes);
+			long estimatedTime = System.currentTimeMillis() - startTime;
+
+			System.out.println("TIEMPO TOTAL: "+estimatedTime);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

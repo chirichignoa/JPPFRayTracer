@@ -58,10 +58,21 @@ public class ConcurrentJobs {
       ensureSufficientConnections(jppfClient, nbJobs);
       List<Future<JPPFJob>> futures = new ArrayList<>(nbJobs);
       // delegate the job submissions to separate threads
+      List<JPPFJob> jobs = new ArrayList<>();
       for (int i=1; i<=nbJobs; i++) {
         JPPFJob job = createJob("multipleThreadsBlockingJob " + i, scenes);
+        jobs.add(job);
         futures.add(executor.submit(new MyCallable(jppfClient, job)));
       }
+
+      int index = 0, position;
+      while (index < scenes.size()){
+        position = index % nbJobs;
+        addScene(jobs.get(position),scenes.get(index), index);
+        //jobs.get(position).add(scenes.get(index));
+        index +=1;
+      }
+
       for (Future<JPPFJob> future: futures) {
         try {
           JPPFJob job = future.get();
@@ -82,7 +93,7 @@ public class ConcurrentJobs {
    */
   public void singleThreadNonBlockingJobs(List<SceneFile> scenes) throws Exception {
     //HACER QUE LOS JOBS SOLO HAGAN UNA SOLA SCENE
-    int nbJobs = 2;
+    int nbJobs = 4;
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
@@ -93,11 +104,19 @@ public class ConcurrentJobs {
         jobs.add(job);
       }
 
-      for(int i = 0; i < scenes.size(); i++) {
+      int index = 0, position;
+      while (index < scenes.size()){
+        position = index % nbJobs;
+        addScene(jobs.get(position),scenes.get(index), index);
+        //jobs.get(position).add(scenes.get(index));
+        index +=1;
+      }
+
+      /*for(int i = 0; i < scenes.size(); i++) {
         for(int j = 0; j < nbJobs; j++) {
           addScene(jobs.get(j),scenes.get(i), i);
         }
-      }
+      }*/
 
       for (JPPFJob job: jobs) {
         job.setBlocking(false);
@@ -114,7 +133,7 @@ public class ConcurrentJobs {
    * @throws Exception if any error occurs.
    */
   public void asynchronousNonBlockingJobs(List<SceneFile> scenes) throws Exception {
-    int nbJobs = 1;
+    int nbJobs = 4;
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
@@ -127,11 +146,19 @@ public class ConcurrentJobs {
         jobs.add(job);
       }
 
-      for(int i = 0; i < scenes.size(); i++) {
+      int index = 0, position;
+      while (index < scenes.size()){
+        position = index % nbJobs;
+        addScene(jobs.get(position),scenes.get(index), index);
+        //jobs.get(position).add(scenes.get(index));
+        index +=1;
+      }
+
+      /*for(int i = 0; i < scenes.size(); i++) {
         for(int j = 0; j < nbJobs; j++) {
           addScene(jobs.get(j),scenes.get(i), i);
         }
-      }
+      }*/
 
       for(JPPFJob job: jobs) {
         // results will be processed asynchronously within
