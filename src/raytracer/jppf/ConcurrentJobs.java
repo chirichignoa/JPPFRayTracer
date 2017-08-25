@@ -27,10 +27,8 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.*;
 
-import javafx.scene.Scene;
 import org.jppf.client.*;
 import org.jppf.client.event.*;
-import org.jppf.node.policy.AtLeast;
 import org.jppf.node.protocol.Task;
 import org.jppf.utils.ExceptionUtils;
 import raytracer.SceneFile;
@@ -43,7 +41,7 @@ public class ConcurrentJobs {
     BufferedImage image = ImageIO.read(new ByteArrayInputStream(img));
     File outputfile = new File(path);
     ImageIO.write(image, "bmp", outputfile);
-    System.out.println("SACALACAI TE VA QUEDAR TRIFICADA LOKAAA");
+    System.out.println("Imagen guardada");
   }
 
   /**
@@ -51,28 +49,19 @@ public class ConcurrentJobs {
    * @throws Exception if any error occurs.
    */
   public void multipleThreadsBlockingJobs(List<SceneFile> scenes) throws Exception {
-    int nbJobs = 1;
+    int nbJobs = 4;
     ExecutorService executor = Executors.newFixedThreadPool(nbJobs);
+    long startTime;
     try (JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
       List<Future<JPPFJob>> futures = new ArrayList<>(nbJobs);
       // delegate the job submissions to separate threads
-      List<JPPFJob> jobs = new ArrayList<>();
+      startTime = System.currentTimeMillis();
       for (int i=1; i<=nbJobs; i++) {
         JPPFJob job = createJob("multipleThreadsBlockingJob " + i, scenes);
-        jobs.add(job);
         futures.add(executor.submit(new MyCallable(jppfClient, job)));
       }
-
-      int index = 0, position;
-      while (index < scenes.size()){
-        position = index % nbJobs;
-        addScene(jobs.get(position),scenes.get(index), index);
-        //jobs.get(position).add(scenes.get(index));
-        index +=1;
-      }
-
       for (Future<JPPFJob> future: futures) {
         try {
           JPPFJob job = future.get();
@@ -85,6 +74,7 @@ public class ConcurrentJobs {
     } finally {
       executor.shutdown();
     }
+    System.out.println("multipleThreadsBlockingJob: " + ((System.currentTimeMillis() - startTime)* 1E-3));
   }
 
   /**
@@ -104,27 +94,25 @@ public class ConcurrentJobs {
         jobs.add(job);
       }
 
-      int index = 0, position;
-      while (index < scenes.size()){
-        position = index % nbJobs;
-        addScene(jobs.get(position),scenes.get(index), index);
-        //jobs.get(position).add(scenes.get(index));
-        index +=1;
-      }
-
-      /*for(int i = 0; i < scenes.size(); i++) {
+      for(int i = 0; i < scenes.size(); i++) {
         for(int j = 0; j < nbJobs; j++) {
           addScene(jobs.get(j),scenes.get(i), i);
         }
-      }*/
+      }
+
+      long startTime = System.currentTimeMillis();
 
       for (JPPFJob job: jobs) {
         job.setBlocking(false);
         jppfClient.submitJob(job);
+      }
+
+      for (JPPFJob job: jobs) {
         job.awaitResults();
         // process the job results
         processResults(job);
       }
+      System.out.println("singleThreadNonBlockingJob: " + ((System.currentTimeMillis() - startTime)* 1E-3));
     }
   }
 
@@ -146,20 +134,12 @@ public class ConcurrentJobs {
         jobs.add(job);
       }
 
-      int index = 0, position;
-      while (index < scenes.size()){
-        position = index % nbJobs;
-        addScene(jobs.get(position),scenes.get(index), index);
-        //jobs.get(position).add(scenes.get(index));
-        index +=1;
-      }
-
-      /*for(int i = 0; i < scenes.size(); i++) {
+      for(int i = 0; i < scenes.size(); i++) {
         for(int j = 0; j < nbJobs; j++) {
           addScene(jobs.get(j),scenes.get(i), i);
         }
-      }*/
-
+      }
+      long startTime = System.currentTimeMillis();
       for(JPPFJob job: jobs) {
         // results will be processed asynchronously within
         // the job listener's jobEnded() notifications
@@ -178,6 +158,7 @@ public class ConcurrentJobs {
       // wait until all jobs are complete
       // i.e. until the count down reaches 0
       countDown.await();
+      System.out.println("asynchronousNonBlockingJob: " + ((System.currentTimeMillis() - startTime)* 1E-3));
     }
   }
 

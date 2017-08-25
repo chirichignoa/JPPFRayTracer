@@ -37,11 +37,11 @@ public class SceneGenerator extends AbstractTask<String> {
     RayTracer rayTracer = new RayTracer(this.scene.getCols(), this.scene.getRows());
 
     try {
-      System.out.println("MAMAAAAAA");
+      System.out.println("Llego una escena");
       rayTracer.readScene(this.scene.getFileAsBytes());
-      System.out.println("CORTASTEEE");
+      System.out.println("Se leyo la escena");
       this.img = rayTracer.draw(scene.getOutputPath());
-      System.out.println("TODA LA LOOOOOZ");
+      System.out.println("Se proceso la escena");
     } catch (Exception e) {
       e.printStackTrace();
     }
