@@ -1,4 +1,3 @@
-import com.sun.org.apache.bcel.internal.generic.NEW;
 import raytracer.SceneFile;
 import raytracer.jppf.ConcurrentJobs;
 
@@ -6,7 +5,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class Main {
 	private static final String USAGE = "Usage:\n"+

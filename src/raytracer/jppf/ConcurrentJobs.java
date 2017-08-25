@@ -18,7 +18,6 @@
 
 package raytracer.jppf;
 
-import java.awt.*;
 import java.awt.image.*;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -31,6 +30,8 @@ import org.jppf.client.*;
 import org.jppf.client.event.*;
 import org.jppf.node.protocol.Task;
 import org.jppf.utils.ExceptionUtils;
+import org.jppf.utils.JPPFConfiguration;
+import org.jppf.utils.TypedProperties;
 import raytracer.SceneFile;
 
 import javax.imageio.ImageIO;
@@ -52,6 +53,10 @@ public class ConcurrentJobs {
     int nbJobs = 4;
     ExecutorService executor = Executors.newFixedThreadPool(nbJobs);
     long startTime;
+    // get the configuration
+    TypedProperties config = JPPFConfiguration.getProperties();
+    // set the connection properties programmatically
+    config.setInt("jppf.pool.size", nbJobs);
     try (JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
@@ -84,6 +89,10 @@ public class ConcurrentJobs {
   public void singleThreadNonBlockingJobs(List<SceneFile> scenes) throws Exception {
     //HACER QUE LOS JOBS SOLO HAGAN UNA SOLA SCENE
     int nbJobs = 4;
+    // get the configuration
+    TypedProperties config = JPPFConfiguration.getProperties();
+    // set the connection properties programmatically
+    config.setInt("jppf.pool.size", nbJobs);
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
@@ -122,6 +131,10 @@ public class ConcurrentJobs {
    */
   public void asynchronousNonBlockingJobs(List<SceneFile> scenes) throws Exception {
     int nbJobs = 4;
+    // get the configuration
+    TypedProperties config = JPPFConfiguration.getProperties();
+    // set the connection properties programmatically
+    config.setInt("jppf.pool.size", nbJobs);
     try (final JPPFClient jppfClient = new JPPFClient()) {
       // make sure the client has enough connections
       ensureSufficientConnections(jppfClient, nbJobs);
@@ -227,7 +240,7 @@ public class ConcurrentJobs {
     // wait until a connection pool is available
     JPPFConnectionPool pool = jppfClient.awaitActiveConnectionPool();
     // make sure the pool has enough connections and wait until all connections are active
-    pool.awaitActiveConnections(Operator.AT_LEAST, 1);
+    pool.awaitActiveConnections(Operator.AT_LEAST, nbConnections);
     // alternatively with a single method call: wait until there is a connection pool with at least <nbConnections> active connections, for as long as it takes
     //jppfClient.awaitConnectionPools(Operator.AT_LEAST, nbConnections, Long.MAX_VALUE, JPPFClientConnectionStatus.ACTIVE);
   }
