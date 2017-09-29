@@ -10,21 +10,19 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class RayTracer {
-	public static final int MAX_RECURSION_LEVEL = 5;
-	public static final Color BACKGROUND_COLOR = Color.GRAY;
+	private final int MAX_RECURSION_LEVEL = 5;
+	private final Color BACKGROUND_COLOR = Color.GRAY;
 
-	public static boolean DEBUG = false;
-	public static boolean ANTI_ALIAS = true;
-	public static boolean MULTI_THREAD = true;
+	private boolean ANTI_ALIAS = true;
+	private boolean MULTI_THREAD = true;
 
 	private Camera camera;
-	private final ArrayList<Light> lights = new ArrayList<Light>();
-	private final ArrayList<Pigment> pigments = new ArrayList<Pigment>();
-	private final ArrayList<Finish> finishes = new ArrayList<Finish>();
-	private final ArrayList<Shape> shapes = new ArrayList<Shape>();
+	private final ArrayList<Light> lights = new ArrayList<>();
+	private final ArrayList<Pigment> pigments = new ArrayList<>();
+	private final ArrayList<Finish> finishes = new ArrayList<>();
+	private final ArrayList<Shape> shapes = new ArrayList<>();
 	private final int cols, rows;
 
 	public RayTracer(int cols, int rows) {
@@ -32,6 +30,11 @@ public class RayTracer {
 		this.rows = rows;
 	}
 
+	public RayTracer(int cols, int rows, boolean multi) {
+		this.cols = cols;
+		this.rows = rows;
+		this.MULTI_THREAD = multi;
+	}
 
 	private Color shade(RayHit hit, int depth) {
 		Color color = Color.BLACK;
@@ -126,24 +129,18 @@ public class RayTracer {
 		return BACKGROUND_COLOR;
 	}
 
-
-	public byte[] draw(File outFile) throws IOException, InterruptedException {
+	public void drawLocally(File outFile) throws IOException, InterruptedException {
 		final BufferedImage image = new BufferedImage(cols, rows, BufferedImage.TYPE_INT_RGB);
 
 		long start = System.currentTimeMillis();
 
-		if(RayTracer.MULTI_THREAD) {
-			final ThreadPoolExecutor executor = new ThreadPoolExecutor(2, 2, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-			final AtomicInteger remaining = new AtomicInteger(rows * cols);
+		if(this.MULTI_THREAD) {
+			final ThreadPoolExecutor executor = new ThreadPoolExecutor(2, 2, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 			for(int r = 0;r < rows; r++) {
 				for(int c = 0;c < cols; c++) {
 					final int cc = c;
 					final int rr = r;
-					executor.execute(new Runnable() {
-						public void run() {
-							image.setRGB(cc, rr, getPixelColor(cc, rr).getRGB());
-						}
-					});
+					executor.execute(() -> image.setRGB(cc, rr, getPixelColor(cc, rr).getRGB()));
 				}
 			}
 
@@ -151,7 +148,6 @@ public class RayTracer {
 			executor.awaitTermination(5, TimeUnit.MINUTES);
 		} else {
 			for(int r = 0;r < rows; r++) {
-				if(r % 5 == 0) Log.info((rows - r) + " rows left to trace.");
 				for(int c = 0;c < cols; c++) {
 					image.setRGB(c, r, getPixelColor(c, r).getRGB());
 				}
@@ -160,23 +156,51 @@ public class RayTracer {
 
 		Log.info("Finished in: " + (System.currentTimeMillis()-start) + "ms");
 
-//		ImageIO.write(image, "bmp", outFile);
-		return getImage(image);
+		ImageIO.write(image, "bmp", outFile);
 	}
 
-	private byte[] getImage(BufferedImage bi) throws IOException {
+
+	public byte[] draw() throws IOException, InterruptedException {
+		final BufferedImage image = new BufferedImage(cols, rows, BufferedImage.TYPE_INT_RGB);
+
+		long start = System.currentTimeMillis();
+
+		if(this.MULTI_THREAD) {
+			final ThreadPoolExecutor executor = new ThreadPoolExecutor(2, 2, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+			for(int r = 0;r < rows; r++) {
+				for(int c = 0;c < cols; c++) {
+					final int cc = c;
+					final int rr = r;
+					executor.execute(() -> image.setRGB(cc, rr, getPixelColor(cc, rr).getRGB()));
+				}
+			}
+
+			executor.shutdown();
+			executor.awaitTermination(5, TimeUnit.MINUTES);
+		} else {
+			for(int r = 0;r < rows; r++) {
+				for(int c = 0;c < cols; c++) {
+					image.setRGB(c, r, getPixelColor(c, r).getRGB());
+				}
+			}
+		}
+
+		Log.info("Finished in: " + (System.currentTimeMillis()-start) + "ms");
+
+		return getImage();
+	}
+
+	private byte[] getImage() throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ImageIO.write(bi, "bmp", baos);
-		byte[] bytes = baos.toByteArray();
-		return bytes;
+		return baos.toByteArray();
 	}
 
-	public Color getPixelColor(int col, int row) {
+	private Color getPixelColor(int col, int row) {
 		int bmpRow = rows-1 - row;
 //		Log.debug("Tracing ray (col=" + col + ", row=" + row + ")");
 //		Log.debug("  [Note: In bmp format this is row " + bmpRow + "]");
 
-		if(RayTracer.ANTI_ALIAS) {
+		if(this.ANTI_ALIAS) {
 			Ray ray = camera.getRay(col, bmpRow, 0, 0);
 			Color c1 = trace(ray, 0);
 			ray = camera.getRay(col, bmpRow, .5, 0);
@@ -193,6 +217,94 @@ public class RayTracer {
 		}
 	}
 
+	public void readScene(File file) throws FileNotFoundException {
+		Scanner scanner = new Scanner(file);
+
+		// read view
+		Point eye = readPoint(scanner);
+		Point center = readPoint(scanner);
+		Vector up = readVector(scanner);
+		double fovy = scanner.nextDouble();
+		camera = new Camera(eye, center, up, fovy, cols, rows);
+
+		// read lights
+		int numLights = scanner.nextInt();
+		if(numLights > 0) lights.add(new AmbientLight(readPoint(scanner), readColor(scanner), scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat()));
+		for(int i=1;i<numLights;i++) {
+			lights.add(new Light(readPoint(scanner), readColor(scanner), scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat()));
+		}
+
+		// read pigments
+		int numPigments = scanner.nextInt();
+		for(int i=0;i<numPigments;i++) {
+			String name = scanner.next();
+			if("solid".equals(name)) {
+				pigments.add(new SolidPigment(readColor(scanner)));
+			} else if("checker".equals(name)) {
+				pigments.add(new CheckerPigment(readColor(scanner), readColor(scanner), scanner.nextDouble()));
+			} else if("gradient".equals(name)) {
+				pigments.add(new GradientPigment(readPoint(scanner), readVector(scanner), readColor(scanner), readColor(scanner)));
+			} else if("texmap".equals(name)) {
+				File bmpFile = new File(scanner.next());
+				try {
+					pigments.add(new TexmapPigment(bmpFile, scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble()));
+				} catch(IOException ex) {
+					Log.error("Could not locate texmap file '" + bmpFile.getName() + "'.");
+					System.exit(1);
+				}
+			} else {
+				throw new UnsupportedOperationException("Unrecognized pigment: '" + name + "'.");
+			}
+		}
+
+		// read surface finishes
+		int numFins = scanner.nextInt();
+		for(int i=0;i<numFins;i++) {
+			finishes.add(new Finish(scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat(), scanner.nextFloat()));
+		}
+
+		// read shapes
+		int numShapes = scanner.nextInt();
+		for(int i=0;i<numShapes;i++) {
+			int pigNum = scanner.nextInt();
+			int finishNum = scanner.nextInt();
+			String name = scanner.next();
+			Shape shape;
+			if("sphere".equals(name)) {
+				shape = new Sphere(readPoint(scanner), scanner.nextDouble());
+			} else if("plane".equals(name)) {
+				shape = new Plane(scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble());
+			} else if("cylinder".equals(name)) {
+				shape = new Cylinder(readPoint(scanner), readVector(scanner), scanner.nextDouble());
+			} else if("cone".equals(name)) {
+				shape = new Cone(readPoint(scanner), readVector(scanner), scanner.nextDouble());
+			} else if("disc".equals(name)) {
+				shape = new Disc(readPoint(scanner), readVector(scanner), scanner.nextDouble());
+			} else if("polyhedron".equals(name)) {
+				int numFaces = scanner.nextInt();
+				ArrayList<Polygon> faces = new ArrayList<>(numFaces);
+				for(int f=0;f<numFaces;f++) {
+					faces.add(new Polygon(scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble()));
+				}
+				shape = new Polyhedron(faces);
+			} else if("triangle".equals(name)) {
+				shape = new Triangle(readPoint(scanner), readPoint(scanner), readPoint(scanner));
+			} else if("parallelogram".equals(name)) {
+				shape = new Parallelogram(readPoint(scanner), readPoint(scanner), readPoint(scanner));
+			} else if("bezier".equals(name)) {
+				ArrayList<Point> points = new ArrayList<>(16);
+				for(int s=0;s<16;s++) {
+					points.add(readPoint(scanner));
+				}
+				shape = new Bezier(points);
+			} else {
+				throw new UnsupportedOperationException("Unrecognized shape: '" + name + "'.");
+			}
+
+			shape.setMaterial(pigments.get(pigNum), finishes.get(finishNum));
+			shapes.add(shape);
+		}
+	}
 
 	public void readScene(byte[] fileBytes) throws FileNotFoundException {
 		File file = new File("maiame"+Math.random()+".txt");
@@ -271,7 +383,7 @@ public class RayTracer {
 				shape = new Disc(readPoint(scanner), readVector(scanner), scanner.nextDouble());
 			} else if("polyhedron".equals(name)) {
 				int numFaces = scanner.nextInt();
-				ArrayList<Polygon> faces = new ArrayList<Polygon>(numFaces);
+				ArrayList<Polygon> faces = new ArrayList<>(numFaces);
 				for(int f=0;f<numFaces;f++) {
 					faces.add(new Polygon(scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble(), scanner.nextDouble()));
 				}
@@ -281,7 +393,7 @@ public class RayTracer {
 			} else if("parallelogram".equals(name)) {
 				shape = new Parallelogram(readPoint(scanner), readPoint(scanner), readPoint(scanner));
 			} else if("bezier".equals(name)) {
-				ArrayList<Point> points = new ArrayList<Point>(16);
+				ArrayList<Point> points = new ArrayList<>(16);
 				for(int s=0;s<16;s++) {
 					points.add(readPoint(scanner));
 				}

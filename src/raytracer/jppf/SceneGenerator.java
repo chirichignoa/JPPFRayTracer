@@ -5,12 +5,6 @@ import org.jppf.node.protocol.AbstractTask;
 import raytracer.RayTracer;
 import raytracer.SceneFile;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Scanner;
-
 
 /**
  * A simple task used in the demo.
@@ -40,7 +34,7 @@ public class SceneGenerator extends AbstractTask<String> {
       System.out.println("Llego una escena");
       rayTracer.readScene(this.scene.getFileAsBytes());
       System.out.println("Se leyo la escena");
-      this.img = rayTracer.draw(scene.getOutputPath());
+      this.img = rayTracer.draw();
       System.out.println("Se proceso la escena");
     } catch (Exception e) {
       e.printStackTrace();
